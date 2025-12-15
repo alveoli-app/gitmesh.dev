@@ -12,8 +12,14 @@ export function Navigation() {
         </div>
 
         <div className="hidden md:flex items-center gap-6 flex-1 justify-center">
-          <a href="#home" className="text-[18px] font-bold leading-[20px] hover:opacity-70 transition-opacity">
+          <a href="/" className="text-[18px] font-bold leading-[20px] hover:opacity-70 transition-opacity">
             Home
+          </a>
+          <a href="/overview" className="text-[18px] font-bold leading-[20px] hover:opacity-70 transition-opacity">
+            Overview
+          </a>
+          <a href="/projects" className="text-[18px] font-bold leading-[20px] hover:opacity-70 transition-opacity">
+            Projects
           </a>
           <a href="#about" className="text-[18px] font-bold leading-[20px] hover:opacity-70 transition-opacity">
             About
@@ -21,29 +27,29 @@ export function Navigation() {
           <a href="#docs" className="text-[18px] font-bold leading-[20px] hover:opacity-70 transition-opacity">
             Docs
           </a>
-            <details className="relative">
+          <details className="relative">
             <summary className="flex items-center gap-1 text-[18px] font-bold leading-[20px] hover:opacity-70 transition-opacity cursor-pointer list-none">
               Links
               <ChevronDown className="w-4 h-4" />
             </summary>
             <div className="absolute left-1/2 -translate-x-1/2 top-full mt-3 w-64 bg-white border-4 border-black rounded-xl p-3 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex flex-col gap-2 z-50">
               <a href="https://github.com/LF-Decentralized-Trust-labs/gitmesh" target="_blank" rel="noopener noreferrer" className="font-semibold text-sm hover:opacity-70">
-              Repository
+                Repository
               </a>
               <a href="https://zoom-lfx.platform.linuxfoundation.org/meeting/96608771523?password=211b9c60-b73a-4545-8913-75ef933f9365" target="_blank" rel="noopener noreferrer" className="font-semibold text-sm hover:opacity-70">
-              Weekly Dev Call
+                Weekly Dev Call
               </a>
               <a href="https://discord.gg/xXvYkK3yEp" target="_blank" rel="noopener noreferrer" className="font-semibold text-sm hover:opacity-70">
-              Discord
+                Discord
               </a>
               <a href="https://x.com/Gitmesh_oss" target="_blank" rel="noopener noreferrer" className="font-semibold text-sm hover:opacity-70">
-              Twitter / X
+                Twitter / X
               </a>
               <a href="https://www.linkedin.com/company/gitmesh" target="_blank" rel="noopener noreferrer" className="font-semibold text-sm hover:opacity-70">
-              LinkedIn
+                LinkedIn
               </a>
             </div>
-            </details>
+          </details>
         </div>
 
         <Button

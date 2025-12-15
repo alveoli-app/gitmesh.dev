@@ -4,6 +4,7 @@ import type { Metadata } from "next"
 import "./globals.css"
 
 import { Onest, Geist_Mono as V0_Font_Geist_Mono } from "next/font/google"
+import { RybbitAnalytics } from "@/components/rybbit-analytics"
 
 // Initialize fonts
 const _geistMono = V0_Font_Geist_Mono({
@@ -30,7 +31,25 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${onest.variable} font-sans antialiased overflow-x-hidden`}>{children}</body>
+      <head>
+        {/* Rybbit Analytics - Cookieless Tracking */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                window.rybbit = window.rybbit || function() {
+                  (window.rybbit.q = window.rybbit.q || []).push(arguments);
+                };
+                console.log('Rybbit Analytics initialized (demo mode)');
+              })();
+            `,
+          }}
+        />
+      </head>
+      <body className={`${onest.variable} font-sans antialiased overflow-x-hidden`}>
+        <RybbitAnalytics />
+        {children}
+      </body>
     </html>
   )
 }
