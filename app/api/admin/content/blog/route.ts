@@ -4,6 +4,10 @@ import { supabase } from '@/lib/supabase'
 import { generateSlug } from '@/lib/content-parser'
 import { z } from 'zod'
 
+/**
+ * Schema for creating or updating content items.
+ * Supports blog posts, announcements, and welfare information.
+ */
 const CreateContentSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   type: z.enum(['blog', 'announcement', 'welfare']).default('blog'),
@@ -14,24 +18,35 @@ const CreateContentSchema = z.object({
   tags: z.array(z.string()).default([]),
   featured: z.boolean().default(false),
   newsletter: z.boolean().default(false),
-  sendNewsletter: z.boolean().default(false),
+  sendNewsletter: z.boolean().default(false), // UI-only flag to trigger newsletter dispatch
 })
 
-// GET /api/admin/content/blog - List all content
+/**
+ * GET /api/admin/content/blog
+ * Fetches a list of content items filtered by type.
+ * 
+ * @param request - The NextRequest object containing query parameters
+ * @returns A JSON response with the requested content items
+ */
 export async function GET(request: NextRequest) {
   try {
+    // Security check: Only allow super admins
     await requireAdmin()
 
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type') || 'blog'
 
+    // Query Supabase with descending order based on publication date
     const { data: content, error } = await supabase
       .from('content')
       .select('*')
       .eq('type', type)
       .order('published_at', { ascending: false })
 
-    if (error) throw error
+    if (error) {
+      console.error('[CMS_API] Supabase error during GET:', error)
+      throw error
+    }
 
     return NextResponse.json({
       success: true,
@@ -49,7 +64,7 @@ export async function GET(request: NextRequest) {
       }))
     })
   } catch (error) {
-    console.error('Error fetching content:', error)
+    console.error('[CMS_API] Failed to fetch content:', error)
     return NextResponse.json(
       {
         success: false,
@@ -60,17 +75,25 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/admin/content/blog - Create new content
+/**
+ * POST /api/admin/content/blog
+ * Creates a new content item in the database and optionally sends a newsletter.
+ * 
+ * @param request - The NextRequest object containing the content payload
+ * @returns A success response with the new content slug
+ */
 export async function POST(request: NextRequest) {
   try {
+    // Security check: Only allow super admins
     await requireAdmin()
 
     const body = await request.json()
     const validatedData = CreateContentSchema.parse(body)
 
-    // Generate slug from title
+    // Automatically generate a URL-safe slug from the title
     const slug = generateSlug(validatedData.title)
 
+    // Persistence layer: Supabase 'content' table
     const { data, error } = await supabase
       .from('content')
       .insert({
@@ -88,17 +111,20 @@ export async function POST(request: NextRequest) {
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      console.error('[CMS_API] Supabase error during POST:', error)
+      throw error
+    }
 
     let newsletterResult = null
 
-    // Send newsletter if requested and newsletter flag is true
+    // Optional: Dispatch newsletter if the item is flagged for it
     if (validatedData.sendNewsletter && validatedData.newsletter) {
       try {
         newsletterResult = await sendNewsletterForContent(slug, validatedData)
       } catch (newsletterError) {
-        console.error('Newsletter sending failed:', newsletterError)
-        // Don't fail the content creation if newsletter fails
+        // Log error but prioritize main operation's success
+        console.error('[CMS_API] Newsletter dispatch failed:', newsletterError)
         newsletterResult = {
           success: false,
           error: newsletterError instanceof Error ? newsletterError.message : 'Newsletter sending failed'
@@ -115,8 +141,9 @@ export async function POST(request: NextRequest) {
       newsletterResult
     })
   } catch (error) {
-    console.error('Error creating content:', error)
+    console.error('[CMS_API] Error creating content:', error)
 
+    // Handle Zod validation errors with specific details
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -138,9 +165,13 @@ export async function POST(request: NextRequest) {
   }
 }
 
+/**
+ * Internal helper to trigger the newsletter service for a specific item.
+ */
 async function sendNewsletterForContent(slug: string, postData: any) {
-  // Use a safer way to get the base URL
+  // Ensure the base URL is correctly resolved for server-side fetch
   const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+
   const response = await fetch(`${baseUrl}/api/admin/newsletter/send`, {
     method: 'POST',
     headers: {

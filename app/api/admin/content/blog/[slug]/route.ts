@@ -3,6 +3,10 @@ import { requireAdmin } from '@/lib/admin-protection'
 import { supabase } from '@/lib/supabase'
 import { z } from 'zod'
 
+/**
+ * Schema for updating an existing content item.
+ * Requires all fields for a full update, but supports the UI-only newsletter flag.
+ */
 const UpdateContentSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   type: z.enum(['blog', 'announcement', 'welfare']).default('blog'),
@@ -13,7 +17,7 @@ const UpdateContentSchema = z.object({
   tags: z.array(z.string()).default([]),
   featured: z.boolean().default(false),
   newsletter: z.boolean().default(false),
-  sendNewsletter: z.boolean().default(false),
+  sendNewsletter: z.boolean().default(false), // Flag to trigger high-priority newsletter dispatch
 })
 
 interface RouteParams {
@@ -22,12 +26,20 @@ interface RouteParams {
   }>
 }
 
-// GET /api/admin/content/blog/[slug] - Get single content item
+/**
+ * GET /api/admin/content/blog/[slug]
+ * Retrieves a single content item by its URL-safe slug.
+ * 
+ * @param params - Contains the unique slug for the item
+ * @returns JSON containing the item data or 404 if not found
+ */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   const { slug } = await params
   try {
+    // Audit authorization
     await requireAdmin()
 
+    // Singular lookup on the unique 'slug' index
     const { data: item, error } = await supabase
       .from('content')
       .select('*')
@@ -35,6 +47,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       .single()
 
     if (error || !item) {
+      if (error && error.code !== 'PGRST116') {
+        console.error('[CMS_API_ITEM] Supabase lookup error:', error)
+      }
       return NextResponse.json(
         { success: false, error: 'Content not found' },
         { status: 404 }
@@ -58,7 +73,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       }
     })
   } catch (error) {
-    console.error('Error fetching content:', error)
+    console.error('[CMS_API_ITEM] Fatal error fetching item:', error)
     return NextResponse.json(
       {
         success: false,
@@ -69,15 +84,22 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-// PUT /api/admin/content/blog/[slug] - Update content
+/**
+ * PUT /api/admin/content/blog/[slug]
+ * Updates an existng content item and optionally re-dispatches a newsletter.
+ * 
+ * @returns JSON with the updated status
+ */
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   const { slug } = await params
   try {
+    // Verify admin credentials
     await requireAdmin()
 
     const body = await request.json()
     const validatedData = UpdateContentSchema.parse(body)
 
+    // Update row by slug
     const { data, error } = await supabase
       .from('content')
       .update({
@@ -95,17 +117,19 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      console.error('[CMS_API_ITEM] Supabase update fail:', error)
+      throw error
+    }
 
     let newsletterResult = null
 
-    // Send newsletter if requested and newsletter flag is true
+    // Handle newsletter re-dispatch if requested
     if (validatedData.sendNewsletter && validatedData.newsletter) {
       try {
         newsletterResult = await sendNewsletterForContent(slug, validatedData)
       } catch (newsletterError) {
-        console.error('Newsletter sending failed:', newsletterError)
-        // Don't fail the content update if newsletter fails
+        console.error('[CMS_API_ITEM] Newsletter update failed:', newsletterError)
         newsletterResult = {
           success: false,
           error: newsletterError instanceof Error ? newsletterError.message : 'Newsletter sending failed'
@@ -122,7 +146,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       newsletterResult
     })
   } catch (error) {
-    console.error('Error updating content:', error)
+    console.error('[CMS_API_ITEM] Error during PUT:', error)
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -167,7 +191,10 @@ async function sendNewsletterForContent(slug: string, postData: any) {
   return await response.json()
 }
 
-// DELETE /api/admin/content/blog/[slug] - Delete content
+/**
+ * DELETE /api/admin/content/blog/[slug]
+ * Physically removes a content item from the 'content' table.
+ */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const { slug } = await params
   try {
@@ -178,7 +205,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       .delete()
       .eq('slug', slug)
 
-    if (error) throw error
+    if (error) {
+      console.error('[CMS_API_ITEM] Supabase delete error:', error)
+      throw error
+    }
 
     return NextResponse.json({
       success: true,
@@ -188,7 +218,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       }
     })
   } catch (error) {
-    console.error('Error deleting content:', error)
+    console.error('[CMS_API_ITEM] Failed to delete item:', error)
     return NextResponse.json(
       {
         success: false,

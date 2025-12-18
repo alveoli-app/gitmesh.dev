@@ -40,6 +40,9 @@ import {
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
+/**
+ * Summary data for a content item, used in the management list view.
+ */
 interface ContentSummary {
   slug: string
   title: string
@@ -53,17 +56,29 @@ interface ContentSummary {
   wordCount: number
 }
 
+/**
+ * BlogPostManager
+ * The primary dashboard for managing site content.
+ * Provides filtering by type (Blog, Announcement, Welfare), search, and tag/author filters.
+ */
 export function BlogPostManager() {
   const [items, setItems] = useState<ContentSummary[]>([])
   const [loading, setLoading] = useState(true)
+
+  // UI filter state
   const [searchTerm, setSearchTerm] = useState('')
   const [contentType, setContentType] = useState<'blog' | 'announcement' | 'welfare'>('blog')
   const [filterTag, setFilterTag] = useState<string>('')
   const [filterAuthor, setFilterAuthor] = useState<string>('')
+
+  // Editor visibility state
   const [showEditor, setShowEditor] = useState(false)
   const [editingItem, setEditingItem] = useState<string | null>(null)
   const { toast } = useToast()
 
+  /**
+   * Fetches the content list from the API based on the currently selected type.
+   */
   const fetchContent = async () => {
     try {
       setLoading(true)
@@ -80,6 +95,7 @@ export function BlogPostManager() {
         })
       }
     } catch (error) {
+      console.error('[Manager] Fetch error:', error)
       toast({
         title: 'Error',
         description: 'Failed to fetch content',

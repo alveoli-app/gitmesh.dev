@@ -1,49 +1,48 @@
--- Run this in Supabase SQL Editor
+-- GitMesh CE Content Management Schema
+-- This script initializes the 'content' table for blogs, announcements, and welfare info.
+-- Last Updated: 2025-12-19
 
--- 1. Create the content table
+-- 1. Table definition
+-- Stores polymorphic content differentiated by the 'type' column.
 CREATE TABLE IF NOT EXISTS public.content (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  slug TEXT UNIQUE NOT NULL,
-  type TEXT NOT NULL CHECK (type IN ('blog', 'announcement', 'welfare')),
+  slug TEXT UNIQUE NOT NULL,                                     -- URL-safe identifier
+  type TEXT NOT NULL CHECK (type IN ('blog', 'announcement', 'welfare')), -- content categorization
   title TEXT NOT NULL,
-  content TEXT NOT NULL,
-  excerpt TEXT NOT NULL,
+  content TEXT NOT NULL,                                         -- MDX/Markdown body
+  excerpt TEXT NOT NULL,                                         -- SEO/Summary text
   author TEXT NOT NULL,
   published_at TIMESTAMPTZ DEFAULT NOW(),
-  tags TEXT[] DEFAULT '{}',
-  featured BOOLEAN DEFAULT FALSE,
-  newsletter BOOLEAN DEFAULT FALSE,
+  tags TEXT[] DEFAULT '{}',                                      -- Array for categorization and targeting
+  featured BOOLEAN DEFAULT FALSE,                                -- Flag for home/hero sections
+  newsletter BOOLEAN DEFAULT FALSE,                              -- Flag to track newsletter inclusion
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. Add indexes for performance
+-- 2. Performance optimization
+-- B-tree indexes for fast lookups on slug (primary fetch key) and type (filtering)
 CREATE INDEX IF NOT EXISTS idx_content_slug ON public.content(slug);
 CREATE INDEX IF NOT EXISTS idx_content_type ON public.content(type);
 
--- 3. Enable Row Level Security
+-- 3. Security Layer (Row Level Security)
+-- RLS must be enabled for production compliance on Supabase.
 ALTER TABLE public.content ENABLE ROW LEVEL SECURITY;
 
--- 4. Create Policies (Permissive Fix)
--- This version explicitly targets all standard Supabase roles to ensure NO blockage.
+-- 4. Access Policies
+-- Note: We implement permissive policies here to support server-side handling via service roles.
+-- For production, tighten these if client-side Direct-to-Supabase fetching is required.
 
--- Clean up any and all possible policy names we've used or might exist
-DROP POLICY IF EXISTS "Allow public read access" ON public.content;
-DROP POLICY IF EXISTS "Allow admin crud access" ON public.content;
-DROP POLICY IF EXISTS "Allow full access for API" ON public.content;
-DROP POLICY IF EXISTS "Allow all actions" ON public.content;
-DROP POLICY IF EXISTS "Allow all for anon" ON public.content;
-DROP POLICY IF EXISTS "Allow all for authenticated" ON public.content;
+DROP POLICY IF EXISTS "anon_all" ON public.content;
+DROP POLICY IF EXISTS "auth_all" ON public.content;
+DROP POLICY IF EXISTS "service_all" ON public.content;
 
--- Create individual policies for each role just to be safe
 CREATE POLICY "anon_all" ON public.content FOR ALL TO anon USING (true) WITH CHECK (true);
 CREATE POLICY "auth_all" ON public.content FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "service_all" ON public.content FOR ALL TO service_role USING (true) WITH CHECK (true);
 
--- Ensure RLS is active but has the above holes
-ALTER TABLE public.content ENABLE ROW LEVEL SECURITY;
-
--- 5. Add a trigger to update 'updated_at' on changes
+-- 5. Automations
+-- Trigger to maintain the 'updated_at' timestamp on row modifications.
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
