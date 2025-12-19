@@ -1,1 +1,18 @@
-[]
+[
+  {
+    "email": "snehkansagara@gmail.com",
+    "name": "",
+    "subscribedAt": "2025-12-19T07:54:15.688Z",
+    "confirmed": true,
+    "tags": [],
+    "unsubscribeToken": "1687d79916f8faa9105c5190f7a79766131eb2066dfe05501c4609e01fa95024"
+  },
+  {
+    "email": "snehkansagara2005@gmail.com",
+    "name": "",
+    "subscribedAt": "2025-12-19T08:03:06.583Z",
+    "confirmed": false,
+    "tags": [],
+    "unsubscribeToken": "7215df1dad4fd4a3239511f1420b2fbfcf5df269e26a33a02a3ee6a4e6b1dc68"
+  }
+]
