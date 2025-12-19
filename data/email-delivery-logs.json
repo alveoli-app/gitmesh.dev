@@ -1,1 +1,142 @@
-[]
+[
+  {
+    "id": "1766134250999-hsao1tkzt",
+    "timestamp": "2025-12-19T08:50:50.999Z",
+    "type": "welcome",
+    "subject": "Welcome to GitMesh CE! 🚀",
+    "recipientCount": 1,
+    "successCount": 1,
+    "failureCount": 0,
+    "failures": [],
+    "tags": [
+      "newsletter",
+      "welcome"
+    ],
+    "adminUser": "system"
+  },
+  {
+    "id": "1766134207978-onykfzxrf",
+    "timestamp": "2025-12-19T08:50:07.978Z",
+    "type": "confirmation",
+    "subject": "Confirm your GitMesh CE newsletter subscription",
+    "recipientCount": 1,
+    "successCount": 1,
+    "failureCount": 0,
+    "failures": [],
+    "tags": [
+      "newsletter",
+      "confirmation"
+    ],
+    "adminUser": "system"
+  },
+  {
+    "id": "1766134120750-gpd0cai1l",
+    "timestamp": "2025-12-19T08:48:40.750Z",
+    "type": "confirmation",
+    "subject": "Confirm your GitMesh CE newsletter subscription",
+    "recipientCount": 1,
+    "successCount": 1,
+    "failureCount": 0,
+    "failures": [],
+    "tags": [
+      "newsletter",
+      "confirmation"
+    ],
+    "adminUser": "system"
+  },
+  {
+    "id": "1766133973642-airdku2et",
+    "timestamp": "2025-12-19T08:46:13.642Z",
+    "type": "confirmation",
+    "subject": "Confirm your GitMesh CE newsletter subscription",
+    "recipientCount": 1,
+    "successCount": 1,
+    "failureCount": 0,
+    "failures": [],
+    "tags": [
+      "newsletter",
+      "confirmation"
+    ],
+    "adminUser": "system"
+  },
+  {
+    "id": "1766133517242-ecocjoluz",
+    "timestamp": "2025-12-19T08:38:37.242Z",
+    "type": "confirmation",
+    "subject": "Confirm your GitMesh CE newsletter subscription",
+    "recipientCount": 1,
+    "successCount": 1,
+    "failureCount": 0,
+    "failures": [],
+    "tags": [
+      "newsletter",
+      "confirmation"
+    ],
+    "adminUser": "system"
+  },
+  {
+    "id": "1766132664812-2qnu2s2c0",
+    "timestamp": "2025-12-19T08:24:24.812Z",
+    "type": "confirmation",
+    "subject": "Confirm your GitMesh CE newsletter subscription",
+    "recipientCount": 1,
+    "successCount": 1,
+    "failureCount": 0,
+    "failures": [],
+    "tags": [
+      "newsletter",
+      "confirmation"
+    ],
+    "adminUser": "system"
+  },
+  {
+    "id": "1766131387683-da8iemcmd",
+    "timestamp": "2025-12-19T08:03:07.683Z",
+    "type": "confirmation",
+    "subject": "Confirm your GitMesh CE newsletter subscription",
+    "recipientCount": 1,
+    "successCount": 1,
+    "failureCount": 0,
+    "failures": [],
+    "tags": [
+      "newsletter",
+      "confirmation"
+    ],
+    "adminUser": "system"
+  },
+  {
+    "id": "1766131153971-09ghpfmha",
+    "timestamp": "2025-12-19T07:59:13.971Z",
+    "type": "confirmation",
+    "subject": "Confirm your GitMesh CE newsletter subscription",
+    "recipientCount": 1,
+    "successCount": 1,
+    "failureCount": 0,
+    "failures": [],
+    "tags": [
+      "newsletter",
+      "confirmation"
+    ],
+    "adminUser": "system"
+  },
+  {
+    "id": "1766130865723-lol0cqu5u",
+    "timestamp": "2025-12-19T07:54:25.723Z",
+    "type": "confirmation",
+    "subject": "Email Confirmation",
+    "recipientCount": 1,
+    "successCount": 0,
+    "failureCount": 1,
+    "failures": [
+      {
+        "email": "snehkansagara@gmail.com",
+        "error": "All retry attempts exhausted. Last error: Email service error: Email service error: The provided authorization grant is invalid, expired, or revoked"
+      }
+    ],
+    "tags": [
+      "newsletter",
+      "confirmation"
+    ],
+    "adminUser": "system"
+  }
+]
