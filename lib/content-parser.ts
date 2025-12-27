@@ -88,14 +88,13 @@ export function parsePage(content: string, slug: string): ParsedContent<PageFron
 /**
  * Generate slug from filename
  */
-export function generateSlug(filename: string): string {
-  // Remove file extension
-  const nameWithoutExt = filename.replace(/\.mdx?$/, '')
-  
-  // For blog posts, remove date prefix (YYYY-MM-DD-)
-  const slug = nameWithoutExt.replace(/^\d{4}-\d{2}-\d{2}-/, '')
-  
-  return slug
+export function generateSlug(input: string): string {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '')    // Remove special characters
+    .replace(/[\s_-]+/g, '-')    // Replace spaces and underscores with hyphens
+    .replace(/^-+|-+$/g, '')     // Remove leading/trailing hyphens
 }
 
 /**
