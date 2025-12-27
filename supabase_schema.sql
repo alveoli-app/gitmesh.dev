@@ -37,7 +37,7 @@ DROP POLICY IF EXISTS "anon_all" ON public.content;
 DROP POLICY IF EXISTS "auth_all" ON public.content;
 DROP POLICY IF EXISTS "service_all" ON public.content;
 
-CREATE POLICY "anon_all" ON public.content FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "anon_read_only" ON public.content FOR SELECT TO anon USING (true);
 CREATE POLICY "auth_all" ON public.content FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "service_all" ON public.content FOR ALL TO service_role USING (true) WITH CHECK (true);
 

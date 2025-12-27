@@ -21,8 +21,7 @@ import {
   FileText,
   Tag,
   Mail,
-  Send,
-  Layers
+  Send
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { MDXPreview } from './mdx-preview'
@@ -42,9 +41,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-interface ContentData {
+interface BlogPostData {
   slug: string
-  type: 'blog' | 'announcement' | 'welfare'
   title: string
   excerpt: string
   content: string
@@ -53,6 +51,7 @@ interface ContentData {
   tags: string[]
   featured: boolean
   newsletter: boolean
+  filename: string
   wordCount: number
 }
 
@@ -87,7 +86,6 @@ export function BlogPostEditor({ slug, onClose }: BlogPostEditorProps) {
   // Local state for the content form data
   const [formData, setFormData] = useState({
     title: '',
-    type: 'blog' as 'blog' | 'announcement' | 'welfare',
     excerpt: '',
     content: '',
     author: '',
@@ -110,11 +108,11 @@ export function BlogPostEditor({ slug, onClose }: BlogPostEditorProps) {
 
   useEffect(() => {
     if (slug) {
-      fetchItem()
+      fetchPost()
     }
   }, [slug])
 
-  const fetchItem = async () => {
+  const fetchPost = async () => {
     if (!slug) return
 
     try {
@@ -123,22 +121,21 @@ export function BlogPostEditor({ slug, onClose }: BlogPostEditorProps) {
       const result = await response.json()
 
       if (result.success) {
-        const item = result.data
+        const post = result.data
         setFormData({
-          title: item.title,
-          type: item.type,
-          excerpt: item.excerpt,
-          content: item.content,
-          author: item.author,
-          publishedAt: new Date(item.publishedAt).toISOString().slice(0, 16),
-          tags: item.tags,
-          featured: item.featured,
-          newsletter: item.newsletter,
+          title: post.title,
+          excerpt: post.excerpt,
+          content: post.content,
+          author: post.author,
+          publishedAt: new Date(post.publishedAt).toISOString().slice(0, 16),
+          tags: post.tags,
+          featured: post.featured,
+          newsletter: post.newsletter,
         })
       } else {
         toast({
           title: 'Error',
-          description: result.error || 'Failed to fetch content',
+          description: result.error || 'Failed to fetch blog post',
           variant: 'destructive',
         })
         onClose(false)
@@ -146,7 +143,7 @@ export function BlogPostEditor({ slug, onClose }: BlogPostEditorProps) {
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to fetch content',
+        description: 'Failed to fetch blog post',
         variant: 'destructive',
       })
       onClose(false)
@@ -197,8 +194,8 @@ export function BlogPostEditor({ slug, onClose }: BlogPostEditorProps) {
         toast({
           title: 'Success',
           description: isEditing
-            ? 'Content updated successfully'
-            : 'Content created successfully',
+            ? 'Blog post updated successfully'
+            : 'Blog post created successfully',
         })
 
         // Handle post-save newsletter workflow feedback
@@ -222,7 +219,7 @@ export function BlogPostEditor({ slug, onClose }: BlogPostEditorProps) {
       } else {
         toast({
           title: 'Error',
-          description: result.error || 'Failed to save content',
+          description: result.error || 'Failed to save blog post',
           variant: 'destructive',
         })
       }
@@ -230,7 +227,7 @@ export function BlogPostEditor({ slug, onClose }: BlogPostEditorProps) {
       console.error('[Editor] Fatal error during save:', error)
       toast({
         title: 'Error',
-        description: 'Failed to save content',
+        description: 'Failed to save blog post',
         variant: 'destructive',
       })
     } finally {
@@ -275,12 +272,12 @@ export function BlogPostEditor({ slug, onClose }: BlogPostEditorProps) {
     setNewsletterSending(true)
 
     try {
-      // First save the content
+      // First save the blog post
       await handleSave(false)
 
-      // Then send newsletter with the saved item
-      const itemSlug = slug || generateSlugFromTitle(formData.title)
-      await sendNewsletterForItem(itemSlug, options)
+      // Then send newsletter with the saved post
+      const postSlug = slug || generateSlugFromTitle(formData.title)
+      await sendNewsletterForPost(postSlug, options)
     } finally {
       setNewsletterSending(false)
     }
@@ -293,7 +290,7 @@ export function BlogPostEditor({ slug, onClose }: BlogPostEditorProps) {
       .replace(/(^-|-$)/g, '')
   }
 
-  const sendNewsletterForItem = async (itemSlug: string, options: NewsletterOptions) => {
+  const sendNewsletterForPost = async (postSlug: string, options: NewsletterOptions) => {
     try {
       const response = await fetch('/api/admin/newsletter/send', {
         method: 'POST',
@@ -301,9 +298,9 @@ export function BlogPostEditor({ slug, onClose }: BlogPostEditorProps) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          subject: options.customSubject || `New ${formData.type}: ${formData.title}`,
+          subject: options.customSubject || `New Blog Post: ${formData.title}`,
           customContent: options.customContent,
-          includePosts: [itemSlug],
+          includePosts: [postSlug],
           tags: options.targetTags,
         }),
       })
@@ -368,10 +365,10 @@ export function BlogPostEditor({ slug, onClose }: BlogPostEditorProps) {
           </Button>
           <div>
             <h2 className="text-xl font-semibold">
-              {isEditing ? 'Edit Content' : 'Create New Content'}
+              {isEditing ? 'Edit Blog Post' : 'Create New Blog Post'}
             </h2>
             <p className="text-sm text-gray-600">
-              {isEditing ? `Editing: ${formData.title}` : 'Create a new content item with MDX support'}
+              {isEditing ? `Editing: ${formData.title}` : 'Create a new blog post with MDX support'}
             </p>
           </div>
         </div>
@@ -395,7 +392,7 @@ export function BlogPostEditor({ slug, onClose }: BlogPostEditorProps) {
             ) : (
               <>
                 <Save className="h-4 w-4 mr-2" />
-                Save Content
+                Save Post
               </>
             )}
           </Button>
@@ -424,7 +421,7 @@ export function BlogPostEditor({ slug, onClose }: BlogPostEditorProps) {
 
                 <TabsContent value="edit" className="mt-4">
                   <Textarea
-                    placeholder="Write your content in MDX format..."
+                    placeholder="Write your blog post content in MDX format..."
                     value={formData.content}
                     onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
                     className="min-h-[500px] font-mono text-sm"
@@ -446,31 +443,6 @@ export function BlogPostEditor({ slug, onClose }: BlogPostEditorProps) {
 
         {/* Sidebar */}
         <div className="space-y-6">
-          {/* Content Type */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Layers className="h-4 w-4" />
-                Content Type
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Select
-                value={formData.type}
-                onValueChange={(value: any) => setFormData(prev => ({ ...prev, type: value }))}
-              >
-                <SelectTrigger className="bg-blue-50 border-blue-200">
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="blog">Blog Post</SelectItem>
-                  <SelectItem value="announcement">Announcement</SelectItem>
-                  <SelectItem value="welfare">Welfare Information</SelectItem>
-                </SelectContent>
-              </Select>
-            </CardContent>
-          </Card>
-
           {/* Basic Information */}
           <Card>
             <CardHeader>
@@ -484,7 +456,7 @@ export function BlogPostEditor({ slug, onClose }: BlogPostEditorProps) {
                 <Label htmlFor="title">Title *</Label>
                 <Input
                   id="title"
-                  placeholder="Enter title"
+                  placeholder="Enter post title"
                   value={formData.title}
                   onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
                 />
@@ -494,7 +466,7 @@ export function BlogPostEditor({ slug, onClose }: BlogPostEditorProps) {
                 <Label htmlFor="excerpt">Excerpt *</Label>
                 <Textarea
                   id="excerpt"
-                  placeholder="Brief description"
+                  placeholder="Brief description of the post"
                   value={formData.excerpt}
                   onChange={(e) => setFormData(prev => ({ ...prev, excerpt: e.target.value }))}
                   rows={3}
@@ -580,7 +552,7 @@ export function BlogPostEditor({ slug, onClose }: BlogPostEditorProps) {
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label>Featured</Label>
+                  <Label>Featured Post</Label>
                   <div className="text-sm text-gray-600">
                     Show in featured section
                   </div>
@@ -588,6 +560,7 @@ export function BlogPostEditor({ slug, onClose }: BlogPostEditorProps) {
                 <Switch
                   checked={formData.featured}
                   onCheckedChange={(checked) => setFormData(prev => ({ ...prev, featured: checked }))}
+                  className="data-[state=unchecked]:bg-slate-200 dark:data-[state=unchecked]:bg-slate-700"
                 />
               </div>
 
@@ -601,6 +574,7 @@ export function BlogPostEditor({ slug, onClose }: BlogPostEditorProps) {
                 <Switch
                   checked={formData.newsletter}
                   onCheckedChange={(checked) => setFormData(prev => ({ ...prev, newsletter: checked }))}
+                  className="data-[state=unchecked]:bg-slate-200 dark:data-[state=unchecked]:bg-slate-700"
                 />
               </div>
             </CardContent>
@@ -615,7 +589,6 @@ export function BlogPostEditor({ slug, onClose }: BlogPostEditorProps) {
         onConfirm={handleNewsletterConfirm}
         postTitle={formData.title}
         postTags={formData.tags}
-        postType={formData.type}
       />
     </div>
   )
@@ -627,10 +600,9 @@ interface NewsletterDialogProps {
   onConfirm: (options: NewsletterOptions) => void
   postTitle: string
   postTags: string[]
-  postType: string
 }
 
-function NewsletterDialog({ open, onOpenChange, onConfirm, postTitle, postTags, postType }: NewsletterDialogProps) {
+function NewsletterDialog({ open, onOpenChange, onConfirm, postTitle, postTags }: NewsletterDialogProps) {
   const [options, setOptions] = useState<NewsletterOptions>({
     customSubject: '',
     customContent: '',
@@ -665,7 +637,7 @@ function NewsletterDialog({ open, onOpenChange, onConfirm, postTitle, postTags, 
             <Label htmlFor="newsletter-subject">Custom Subject (optional)</Label>
             <Input
               id="newsletter-subject"
-              placeholder={`New ${postType}: ${postTitle}`}
+              placeholder={`New Blog Post: ${postTitle}`}
               value={options.customSubject}
               onChange={(e) => setOptions(prev => ({ ...prev, customSubject: e.target.value }))}
             />
@@ -675,7 +647,7 @@ function NewsletterDialog({ open, onOpenChange, onConfirm, postTitle, postTags, 
             <Label htmlFor="newsletter-content">Additional Content (optional)</Label>
             <Textarea
               id="newsletter-content"
-              placeholder={`Add custom message to include with the ${postType}...`}
+              placeholder="Add custom message to include with the blog post..."
               rows={3}
               value={options.customContent}
               onChange={(e) => setOptions(prev => ({ ...prev, customContent: e.target.value }))}
@@ -706,7 +678,7 @@ function NewsletterDialog({ open, onOpenChange, onConfirm, postTitle, postTags, 
             </Select>
             {postTags.length === 0 && (
               <p className="text-sm text-gray-500">
-                Add tags to the content to enable tag-based targeting
+                Add tags to the blog post to enable tag-based targeting
               </p>
             )}
           </div>

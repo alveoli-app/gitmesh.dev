@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin-protection'
-import { supabase } from '@/lib/supabase'
 import { generateSlug } from '@/lib/content-parser'
 import { z } from 'zod'
+import { supabase } from '@/lib/supabase'
 
 /**
  * Schema for creating or updating content items.
  * Supports blog posts, announcements, and welfare information.
  */
 const CreateContentSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
   type: z.enum(['blog', 'announcement', 'welfare']).default('blog'),
+  title: z.string().min(1, 'Title is required'),
   excerpt: z.string().min(1, 'Excerpt is required'),
   content: z.string().min(1, 'Content is required'),
   author: z.string().min(1, 'Author is required'),
@@ -50,17 +50,19 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: content.map(item => ({
-        slug: item.slug,
-        title: item.title,
-        type: item.type,
-        excerpt: item.excerpt,
-        author: item.author,
-        publishedAt: item.published_at,
-        tags: item.tags,
-        featured: item.featured,
-        newsletter: item.newsletter,
-        wordCount: item.content.split(/\s+/).length,
+      data: (content || []).map((post: any) => ({
+        slug: post.slug,
+        title: post.title,
+        excerpt: post.excerpt,
+        author: post.author,
+        publishedAt: post.published_at,
+        tags: post.tags,
+        featured: post.featured,
+        newsletter: post.newsletter,
+        filename: null, // No longer file-based
+        wordCount: post.content.split(/\s+/).length,
+        // Include content for editing if needed, but list usually doesn't need full content
+        content: post.content,
       }))
     })
   } catch (error) {
@@ -68,7 +70,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch content'
+        error: error instanceof Error ? error.message : 'Failed to fetch blog posts'
       },
       { status: error instanceof Error && error.message === 'Unauthorized' ? 401 : 500 }
     )
@@ -136,7 +138,7 @@ export async function POST(request: NextRequest) {
       success: true,
       data: {
         slug,
-        message: 'Content created successfully'
+        message: 'Blog post created successfully'
       },
       newsletterResult
     })
@@ -158,7 +160,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to create content'
+        error: error instanceof Error ? error.message : 'Failed to create blog post'
       },
       { status: error instanceof Error && error.message === 'Unauthorized' ? 401 : 500 }
     )
@@ -178,7 +180,7 @@ async function sendNewsletterForContent(slug: string, postData: any) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      subject: `New ${postData.type}: ${postData.title}`,
+      subject: `New Blog Post: ${postData.title}`,
       includePosts: [slug],
       tags: postData.tags,
     }),

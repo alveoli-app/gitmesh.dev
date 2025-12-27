@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin-protection'
-import { supabase } from '@/lib/supabase'
 import { z } from 'zod'
+import { supabase } from '@/lib/supabase'
 
 /**
  * Schema for updating an existing content item.
  * Requires all fields for a full update, but supports the UI-only newsletter flag.
  */
 const UpdateContentSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
   type: z.enum(['blog', 'announcement', 'welfare']).default('blog'),
+  title: z.string().min(1, 'Title is required'),
   excerpt: z.string().min(1, 'Excerpt is required'),
   content: z.string().min(1, 'Content is required'),
   author: z.string().min(1, 'Author is required'),
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         console.error('[CMS_API_ITEM] Supabase lookup error:', error)
       }
       return NextResponse.json(
-        { success: false, error: 'Content not found' },
+        { success: false, error: 'Blog post not found' },
         { status: 404 }
       )
     }
@@ -60,7 +60,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       success: true,
       data: {
         slug: item.slug,
-        type: item.type,
         title: item.title,
         excerpt: item.excerpt,
         content: item.content,
@@ -69,6 +68,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         tags: item.tags,
         featured: item.featured,
         newsletter: item.newsletter,
+        filename: null,
         wordCount: item.content.split(/\s+/).length,
       }
     })
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch content'
+        error: error instanceof Error ? error.message : 'Failed to fetch blog post'
       },
       { status: error instanceof Error && error.message === 'Unauthorized' ? 401 : 500 }
     )
@@ -141,7 +141,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       success: true,
       data: {
         slug,
-        message: 'Content updated successfully'
+        message: 'Blog post updated successfully'
       },
       newsletterResult
     })
@@ -162,7 +162,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to update content'
+        error: error instanceof Error ? error.message : 'Failed to update blog post'
       },
       { status: error instanceof Error && error.message === 'Unauthorized' ? 401 : 500 }
     )
@@ -177,7 +177,7 @@ async function sendNewsletterForContent(slug: string, postData: any) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      subject: `Updated ${postData.type}: ${postData.title}`,
+      subject: `Updated Blog Post: ${postData.title}`,
       includePosts: [slug],
       tags: postData.tags,
     }),
@@ -214,7 +214,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       success: true,
       data: {
         slug,
-        message: 'Content deleted successfully'
+        message: 'Blog post deleted successfully'
       }
     })
   } catch (error) {
@@ -222,7 +222,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to delete content'
+        error: error instanceof Error ? error.message : 'Failed to delete blog post'
       },
       { status: error instanceof Error && error.message === 'Unauthorized' ? 401 : 500 }
     )

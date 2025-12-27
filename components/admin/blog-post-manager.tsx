@@ -35,8 +35,7 @@ import {
   FileText,
   Star,
   Mail,
-  RefreshCw,
-  LayoutGrid
+  RefreshCw
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
@@ -46,13 +45,13 @@ import { useToast } from '@/hooks/use-toast'
 interface ContentSummary {
   slug: string
   title: string
-  type: 'blog' | 'announcement' | 'welfare'
   excerpt: string
   author: string
   publishedAt: string
   tags: string[]
   featured: boolean
   newsletter: boolean
+  filename: string
   wordCount: number
 }
 
@@ -62,18 +61,17 @@ interface ContentSummary {
  * Provides filtering by type (Blog, Announcement, Welfare), search, and tag/author filters.
  */
 export function BlogPostManager() {
-  const [items, setItems] = useState<ContentSummary[]>([])
+  const [posts, setPosts] = useState<ContentSummary[]>([])
   const [loading, setLoading] = useState(true)
 
   // UI filter state
   const [searchTerm, setSearchTerm] = useState('')
-  const [contentType, setContentType] = useState<'blog' | 'announcement' | 'welfare'>('blog')
   const [filterTag, setFilterTag] = useState<string>('')
   const [filterAuthor, setFilterAuthor] = useState<string>('')
 
   // Editor visibility state
   const [showEditor, setShowEditor] = useState(false)
-  const [editingItem, setEditingItem] = useState<string | null>(null)
+  const [editingPost, setEditingPost] = useState<string | null>(null)
   const { toast } = useToast()
 
   /**
@@ -82,15 +80,15 @@ export function BlogPostManager() {
   const fetchContent = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/admin/content/blog?type=${contentType}`)
+      const response = await fetch('/api/admin/content/blog')
       const result = await response.json()
 
       if (result.success) {
-        setItems(result.data)
+        setPosts(result.data)
       } else {
         toast({
           title: 'Error',
-          description: result.error || 'Failed to fetch content',
+          description: result.error || 'Failed to fetch blog posts',
           variant: 'destructive',
         })
       }
@@ -98,7 +96,7 @@ export function BlogPostManager() {
       console.error('[Manager] Fetch error:', error)
       toast({
         title: 'Error',
-        description: 'Failed to fetch content',
+        description: 'Failed to fetch blog posts',
         variant: 'destructive',
       })
     } finally {
@@ -108,7 +106,7 @@ export function BlogPostManager() {
 
   useEffect(() => {
     fetchContent()
-  }, [contentType])
+  }, [])
 
   const handleDelete = async (slug: string) => {
     try {
@@ -120,20 +118,20 @@ export function BlogPostManager() {
       if (result.success) {
         toast({
           title: 'Success',
-          description: 'Content deleted successfully',
+          description: 'Blog post deleted successfully',
         })
         fetchContent()
       } else {
         toast({
           title: 'Error',
-          description: result.error || 'Failed to delete content',
+          description: result.error || 'Failed to delete blog post',
           variant: 'destructive',
         })
       }
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to delete content',
+        description: 'Failed to delete blog post',
         variant: 'destructive',
       })
     }
@@ -141,41 +139,35 @@ export function BlogPostManager() {
 
   const handleEditorClose = (saved: boolean) => {
     setShowEditor(false)
-    setEditingItem(null)
+    setEditingPost(null)
     if (saved) {
       fetchContent()
     }
   }
 
-  // Filter items based on search and filters
-  const filteredItems = items.filter(item => {
+  // Filter posts based on search and filters
+  const filteredPosts = posts.filter(post => {
     const matchesSearch = searchTerm === '' ||
-      item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.excerpt.toLowerCase().includes(searchTerm.toLowerCase())
+      post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      post.excerpt.toLowerCase().includes(searchTerm.toLowerCase())
 
-    const matchesTag = filterTag === '' || item.tags.includes(filterTag)
-    const matchesAuthor = filterAuthor === '' || item.author === filterAuthor
+    const matchesTag = filterTag === '' || post.tags.includes(filterTag)
+    const matchesAuthor = filterAuthor === '' || post.author === filterAuthor
 
     return matchesSearch && matchesTag && matchesAuthor
   })
 
   // Get unique tags and authors for filters
-  const allTags = Array.from(new Set(items.flatMap(item => item.tags))).sort()
-  const allAuthors = Array.from(new Set(items.map(item => item.author))).sort()
+  const allTags = Array.from(new Set(posts.flatMap(post => post.tags))).sort()
+  const allAuthors = Array.from(new Set(posts.map(post => post.author))).sort()
 
   if (showEditor) {
     return (
       <BlogPostEditor
-        slug={editingItem}
+        slug={editingPost}
         onClose={handleEditorClose}
       />
     )
-  }
-
-  const typeLabels = {
-    blog: 'Blog Posts',
-    announcement: 'Announcements',
-    welfare: 'Welfare Info'
   }
 
   return (
@@ -185,7 +177,7 @@ export function BlogPostManager() {
         <div className="flex items-center gap-2">
           <Button onClick={() => setShowEditor(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            New {contentType === 'blog' ? 'Blog Post' : contentType === 'announcement' ? 'Announcement' : 'Welfare Info'}
+            New Blog Post
           </Button>
           <Button variant="outline" onClick={fetchContent} disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
@@ -194,35 +186,24 @@ export function BlogPostManager() {
         </div>
 
         <div className="text-sm text-gray-600">
-          {filteredItems.length} of {items.length} {typeLabels[contentType]}
+          {filteredPosts.length} of {posts.length} posts
         </div>
       </div>
 
-      {/* Type Selector & Filters */}
+      {/* Filters */}
       <Card>
-        <CardHeader className="pb-3">
+        <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <LayoutGrid className="h-4 w-4" />
-            Content Type & Filters
+            <Filter className="h-4 w-4" />
+            Filters
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Select value={contentType} onValueChange={(value: any) => setContentType(value)}>
-              <SelectTrigger className="bg-blue-50 border-blue-200">
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="blog">Blog Posts</SelectItem>
-                <SelectItem value="announcement">Announcements</SelectItem>
-                <SelectItem value="welfare">Welfare Information</SelectItem>
-              </SelectContent>
-            </Select>
-
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
-                placeholder="Search..."
+                placeholder="Search posts..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -256,7 +237,7 @@ export function BlogPostManager() {
         </CardContent>
       </Card>
 
-      {/* Items List */}
+      {/* Posts List */}
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => (
@@ -274,43 +255,43 @@ export function BlogPostManager() {
             </Card>
           ))}
         </div>
-      ) : filteredItems.length === 0 ? (
+      ) : filteredPosts.length === 0 ? (
         <Card>
           <CardContent className="text-center py-12">
             <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {items.length === 0 ? `No ${typeLabels[contentType]} yet` : 'No items match your filters'}
+              {posts.length === 0 ? 'No blog posts yet' : 'No posts match your filters'}
             </h3>
             <p className="text-gray-600 mb-4">
-              {items.length === 0
-                ? `Get started by creating your first ${contentType}.`
+              {posts.length === 0
+                ? 'Get started by creating your first blog post.'
                 : 'Try adjusting your search or filter criteria.'
               }
             </p>
-            {items.length === 0 && (
+            {posts.length === 0 && (
               <Button onClick={() => setShowEditor(true)}>
                 <Plus className="h-4 w-4 mr-2" />
-                Create First {contentType === 'blog' ? 'Post' : contentType === 'announcement' ? 'Announcement' : 'Welfare Info'}
+                Create First Post
               </Button>
             )}
           </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredItems.map((item) => (
-            <Card key={item.slug} className="hover:shadow-md transition-shadow">
+          {filteredPosts.map((post) => (
+            <Card key={post.slug} className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2">
                   <CardTitle className="text-base line-clamp-2 flex-1">
-                    {item.title}
+                    {post.title}
                   </CardTitle>
                   <div className="flex gap-1 flex-shrink-0">
-                    {item.featured && (
+                    {post.featured && (
                       <div title="Featured">
                         <Star className="h-4 w-4 text-yellow-500" />
                       </div>
                     )}
-                    {item.newsletter && (
+                    {post.newsletter && (
                       <div title="Newsletter">
                         <Mail className="h-4 w-4 text-blue-500" />
                       </div>
@@ -318,20 +299,20 @@ export function BlogPostManager() {
                   </div>
                 </div>
                 <CardDescription className="line-clamp-2">
-                  {item.excerpt}
+                  {post.excerpt}
                 </CardDescription>
               </CardHeader>
 
               <CardContent className="space-y-4">
                 <div className="flex flex-wrap gap-1">
-                  {item.tags.slice(0, 3).map((tag) => (
+                  {post.tags.slice(0, 3).map((tag) => (
                     <Badge key={tag} variant="secondary" className="text-xs">
                       {tag}
                     </Badge>
                   ))}
-                  {item.tags.length > 3 && (
+                  {post.tags.length > 3 && (
                     <Badge variant="outline" className="text-xs">
-                      +{item.tags.length - 3}
+                      +{post.tags.length - 3}
                     </Badge>
                   )}
                 </div>
@@ -339,15 +320,15 @@ export function BlogPostManager() {
                 <div className="flex items-center gap-4 text-xs text-gray-600">
                   <div className="flex items-center gap-1">
                     <User className="h-3 w-3" />
-                    {item.author}
+                    {post.author}
                   </div>
                   <div className="flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
-                    {new Date(item.publishedAt).toLocaleDateString()}
+                    {new Date(post.publishedAt).toLocaleDateString()}
                   </div>
                   <div className="flex items-center gap-1">
                     <FileText className="h-3 w-3" />
-                    {item.wordCount} words
+                    {post.wordCount} words
                   </div>
                 </div>
 
@@ -356,7 +337,7 @@ export function BlogPostManager() {
                     size="sm"
                     variant="outline"
                     onClick={() => {
-                      setEditingItem(item.slug)
+                      setEditingPost(post.slug)
                       setShowEditor(true)
                     }}
                     className="flex-1"
@@ -373,15 +354,15 @@ export function BlogPostManager() {
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Content</AlertDialogTitle>
+                        <AlertDialogTitle>Delete Blog Post</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Are you sure you want to delete "{item.title}"? This action cannot be undone.
+                          Are you sure you want to delete "{post.title}"? This action cannot be undone.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction
-                          onClick={() => handleDelete(item.slug)}
+                          onClick={() => handleDelete(post.slug)}
                           className="bg-red-600 hover:bg-red-700"
                         >
                           Delete
