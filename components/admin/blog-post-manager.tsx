@@ -5,14 +5,14 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { 
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -24,11 +24,11 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { BlogPostEditor } from './blog-post-editor'
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Search, 
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Search,
   Filter,
   Calendar,
   User,
@@ -39,7 +39,10 @@ import {
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
-interface BlogPostSummary {
+/**
+ * Summary data for a content item, used in the management list view.
+ */
+interface ContentSummary {
   slug: string
   title: string
   excerpt: string
@@ -52,22 +55,34 @@ interface BlogPostSummary {
   wordCount: number
 }
 
+/**
+ * BlogPostManager
+ * The primary dashboard for managing site content.
+ * Provides filtering by type (Blog, Announcement, Welfare), search, and tag/author filters.
+ */
 export function BlogPostManager() {
-  const [posts, setPosts] = useState<BlogPostSummary[]>([])
+  const [posts, setPosts] = useState<ContentSummary[]>([])
   const [loading, setLoading] = useState(true)
+
+  // UI filter state
   const [searchTerm, setSearchTerm] = useState('')
   const [filterTag, setFilterTag] = useState<string>('')
   const [filterAuthor, setFilterAuthor] = useState<string>('')
+
+  // Editor visibility state
   const [showEditor, setShowEditor] = useState(false)
   const [editingPost, setEditingPost] = useState<string | null>(null)
   const { toast } = useToast()
 
-  const fetchPosts = async () => {
+  /**
+   * Fetches the content list from the API based on the currently selected type.
+   */
+  const fetchContent = async () => {
     try {
       setLoading(true)
       const response = await fetch('/api/admin/content/blog')
       const result = await response.json()
-      
+
       if (result.success) {
         setPosts(result.data)
       } else {
@@ -78,6 +93,7 @@ export function BlogPostManager() {
         })
       }
     } catch (error) {
+      console.error('[Manager] Fetch error:', error)
       toast({
         title: 'Error',
         description: 'Failed to fetch blog posts',
@@ -89,7 +105,7 @@ export function BlogPostManager() {
   }
 
   useEffect(() => {
-    fetchPosts()
+    fetchContent()
   }, [])
 
   const handleDelete = async (slug: string) => {
@@ -98,13 +114,13 @@ export function BlogPostManager() {
         method: 'DELETE',
       })
       const result = await response.json()
-      
+
       if (result.success) {
         toast({
           title: 'Success',
           description: 'Blog post deleted successfully',
         })
-        fetchPosts()
+        fetchContent()
       } else {
         toast({
           title: 'Error',
@@ -125,19 +141,19 @@ export function BlogPostManager() {
     setShowEditor(false)
     setEditingPost(null)
     if (saved) {
-      fetchPosts()
+      fetchContent()
     }
   }
 
   // Filter posts based on search and filters
   const filteredPosts = posts.filter(post => {
-    const matchesSearch = searchTerm === '' || 
+    const matchesSearch = searchTerm === '' ||
       post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       post.excerpt.toLowerCase().includes(searchTerm.toLowerCase())
-    
+
     const matchesTag = filterTag === '' || post.tags.includes(filterTag)
     const matchesAuthor = filterAuthor === '' || post.author === filterAuthor
-    
+
     return matchesSearch && matchesTag && matchesAuthor
   })
 
@@ -163,12 +179,12 @@ export function BlogPostManager() {
             <Plus className="h-4 w-4 mr-2" />
             New Blog Post
           </Button>
-          <Button variant="outline" onClick={fetchPosts} disabled={loading}>
+          <Button variant="outline" onClick={fetchContent} disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         </div>
-        
+
         <div className="text-sm text-gray-600">
           {filteredPosts.length} of {posts.length} posts
         </div>
@@ -193,7 +209,7 @@ export function BlogPostManager() {
                 className="pl-10"
               />
             </div>
-            
+
             <Select value={filterTag || "all"} onValueChange={(value) => setFilterTag(value === "all" ? "" : value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Filter by tag" />
@@ -205,7 +221,7 @@ export function BlogPostManager() {
                 ))}
               </SelectContent>
             </Select>
-            
+
             <Select value={filterAuthor || "all"} onValueChange={(value) => setFilterAuthor(value === "all" ? "" : value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Filter by author" />
@@ -247,7 +263,7 @@ export function BlogPostManager() {
               {posts.length === 0 ? 'No blog posts yet' : 'No posts match your filters'}
             </h3>
             <p className="text-gray-600 mb-4">
-              {posts.length === 0 
+              {posts.length === 0
                 ? 'Get started by creating your first blog post.'
                 : 'Try adjusting your search or filter criteria.'
               }
@@ -286,7 +302,7 @@ export function BlogPostManager() {
                   {post.excerpt}
                 </CardDescription>
               </CardHeader>
-              
+
               <CardContent className="space-y-4">
                 <div className="flex flex-wrap gap-1">
                   {post.tags.slice(0, 3).map((tag) => (
@@ -300,7 +316,7 @@ export function BlogPostManager() {
                     </Badge>
                   )}
                 </div>
-                
+
                 <div className="flex items-center gap-4 text-xs text-gray-600">
                   <div className="flex items-center gap-1">
                     <User className="h-3 w-3" />
@@ -315,7 +331,7 @@ export function BlogPostManager() {
                     {post.wordCount} words
                   </div>
                 </div>
-                
+
                 <div className="flex gap-2 pt-2">
                   <Button
                     size="sm"
@@ -329,7 +345,7 @@ export function BlogPostManager() {
                     <Edit className="h-3 w-3 mr-1" />
                     Edit
                   </Button>
-                  
+
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700">
