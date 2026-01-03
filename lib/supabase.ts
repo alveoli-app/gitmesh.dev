@@ -8,15 +8,15 @@
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
 // Safeguard for development: Warn if credentials are missing
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('[Supabase] Missing configuration. Ensure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set.')
+if (!supabaseUrl || !supabaseServiceRoleKey) {
+  console.warn('[Supabase] Missing configuration. Ensure NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set.')
 }
 
 /**
  * Shared Supabase client instance.
- * Uses the default 'public' schema and anonymous key for client-side/server-side interaction.
+ * Uses the default 'public' schema and service role key for admin access.
  */
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(supabaseUrl, supabaseServiceRoleKey)
