@@ -135,10 +135,11 @@ class HealthChecker {
     try {
       const fs = await import('fs/promises')
       const path = await import('path')
+      const os = await import('os')
       
       // Check if we can read/write to the data directory
-      const dataDir = path.join(process.cwd(), 'data')
-      const testFile = path.join(dataDir, '.health-check')
+      const tempDir = os.tmpdir()
+      const testFile = path.join(tempDir, '.health-check')
       
       // Try to write a test file
       await fs.writeFile(testFile, JSON.stringify({ timestamp: new Date() }))

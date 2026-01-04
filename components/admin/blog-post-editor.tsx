@@ -55,32 +55,51 @@ interface BlogPostData {
   wordCount: number
 }
 
+/**
+ * Properties for the BlogPostEditor component.
+ * @param slug - Optional slug for the item being edited. If null, a new item is created.
+ * @param onClose - Callback triggered after saving or when the user navigates back.
+ */
 interface BlogPostEditorProps {
   slug?: string | null
   onClose: (saved: boolean) => void
 }
 
+/**
+ * Options for configuring the newsletter email dispatch.
+ */
 interface NewsletterOptions {
   customSubject?: string
   customContent?: string
   targetTags: string[]
 }
 
+/**
+ * BlogPostEditor
+ * A comprehensive editor for blog posts, announcements, and welfare information.
+ * Uses MDX for content and supports tag-based targeting for newsletters.
+ */
 export function BlogPostEditor({ slug, onClose }: BlogPostEditorProps) {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  // Local state for the content form data
   const [formData, setFormData] = useState({
     title: '',
     excerpt: '',
     content: '',
     author: '',
-    publishedAt: new Date().toISOString().slice(0, 16),
+    publishedAt: new Date().toISOString().slice(0, 16), // Format for datetime-local input
     tags: [] as string[],
     featured: false,
     newsletter: false,
   })
+
+  // State for the interactive tag input
   const [newTag, setNewTag] = useState('')
   const [activeTab, setActiveTab] = useState('edit')
+
+  // Newsletter workflow state
   const [showNewsletterDialog, setShowNewsletterDialog] = useState(false)
   const [newsletterSending, setNewsletterSending] = useState(false)
   const { toast } = useToast()
@@ -133,7 +152,12 @@ export function BlogPostEditor({ slug, onClose }: BlogPostEditorProps) {
     }
   }
 
+  /**
+   * Persists the current form state to the database via the API.
+   * Can optionally trigger a newsletter dispatch.
+   */
   const handleSave = async (sendNewsletter = false) => {
+    // Basic validation to ensure required fields are present
     if (!formData.title.trim() || !formData.excerpt.trim() || !formData.content.trim() || !formData.author.trim()) {
       toast({
         title: 'Validation Error',
@@ -158,8 +182,8 @@ export function BlogPostEditor({ slug, onClose }: BlogPostEditorProps) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ...formData,
-          publishedAt: new Date(formData.publishedAt).toISOString(),
+          ...formData, // Spread form data
+          publishedAt: new Date(formData.publishedAt).toISOString(), // Ensure UTC string
           sendNewsletter,
         }),
       })
@@ -174,7 +198,7 @@ export function BlogPostEditor({ slug, onClose }: BlogPostEditorProps) {
             : 'Blog post created successfully',
         })
 
-        // If newsletter was sent, show additional success message
+        // Handle post-save newsletter workflow feedback
         if (sendNewsletter && result.newsletterResult) {
           const { newsletterResult } = result
           if (newsletterResult.success) {
@@ -200,6 +224,7 @@ export function BlogPostEditor({ slug, onClose }: BlogPostEditorProps) {
         })
       }
     } catch (error) {
+      console.error('[Editor] Fatal error during save:', error)
       toast({
         title: 'Error',
         description: 'Failed to save blog post',
@@ -535,6 +560,7 @@ export function BlogPostEditor({ slug, onClose }: BlogPostEditorProps) {
                 <Switch
                   checked={formData.featured}
                   onCheckedChange={(checked) => setFormData(prev => ({ ...prev, featured: checked }))}
+                  className="data-[state=unchecked]:bg-slate-200 dark:data-[state=unchecked]:bg-slate-700"
                 />
               </div>
 
@@ -548,6 +574,7 @@ export function BlogPostEditor({ slug, onClose }: BlogPostEditorProps) {
                 <Switch
                   checked={formData.newsletter}
                   onCheckedChange={(checked) => setFormData(prev => ({ ...prev, newsletter: checked }))}
+                  className="data-[state=unchecked]:bg-slate-200 dark:data-[state=unchecked]:bg-slate-700"
                 />
               </div>
             </CardContent>
