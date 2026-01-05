@@ -63,6 +63,7 @@ export class SendGridProvider implements EmailProvider {
         logInfo('Sending email via SendGrid', {
           component: 'SendGridProvider',
           action: 'sendEmail',
+          from: params.from || this.fromEmail,
           to: params.to,
           subject: params.subject
         })
@@ -96,7 +97,7 @@ export class SendGridProvider implements EmailProvider {
 
         if (response.ok) {
           const messageId = response.headers.get('x-message-id')
-          
+
           logInfo('Successfully sent email via SendGrid', {
             component: 'SendGridProvider',
             action: 'sendEmail',
@@ -110,10 +111,10 @@ export class SendGridProvider implements EmailProvider {
           }
         } else {
           const errorData = await response.json().catch(() => ({}))
-          const error = new Error(errorData.errors?.[0]?.message || 'Failed to send email')
-          ;(error as any).statusCode = response.status
-          ;(error as any).response = { body: errorData }
-          
+          const error = new Error(errorData.errors?.[0]?.message || 'Failed to send email via SendGrid')
+            ; (error as any).statusCode = response.status
+            ; (error as any).response = { body: errorData }
+
           handleEmailError(error)
         }
       } catch (error) {
@@ -122,20 +123,13 @@ export class SendGridProvider implements EmailProvider {
           action: 'sendEmail',
           to: params.to
         })
-        
-        if ((error as any).statusCode || (error as any).response) {
-          handleEmailError(error)
-        }
-        
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error occurred',
-        }
+
+        throw error
       }
-    }, RETRY_CONFIGS.email, {
+    }, RETRY_CONFIGS.email as any, {
       component: 'SendGridProvider',
       action: 'sendEmail',
-      to: params.to
+      metadata: { to: params.to }
     })
   }
 
@@ -201,6 +195,127 @@ export class SendGridProvider implements EmailProvider {
   }
 }
 
+export class BrevoProvider implements EmailProvider {
+  private apiKey: string
+  private fromEmail: string
+
+  constructor(apiKey: string, fromEmail: string) {
+    this.apiKey = apiKey
+    this.fromEmail = fromEmail
+  }
+
+  async sendEmail(params: SendEmailParams): Promise<EmailResult> {
+    return withRetry(async () => {
+      try {
+        logInfo('Sending email via Brevo', {
+          component: 'BrevoProvider',
+          action: 'sendEmail',
+          from: params.from || this.fromEmail,
+          to: params.to,
+          subject: params.subject
+        })
+
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          headers: {
+            'accept': 'application/json',
+            'api-key': this.apiKey,
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            sender: { email: params.from || this.fromEmail },
+            to: [{ email: params.to }],
+            subject: params.subject,
+            htmlContent: params.html,
+            textContent: params.text,
+            replyTo: params.replyTo ? { email: params.replyTo } : undefined,
+            tags: params.tags,
+          }),
+        })
+
+        if (response.ok) {
+          const result = await response.json()
+          const messageId = result.messageId
+
+          logInfo('Successfully sent email via Brevo', {
+            component: 'BrevoProvider',
+            action: 'sendEmail',
+            to: params.to,
+            messageId
+          })
+
+          return {
+            success: true,
+            messageId: messageId || undefined,
+          }
+        } else {
+          const errorData = await response.json().catch(() => ({}))
+          const error = new Error(errorData.message || 'Failed to send email via Brevo')
+            ; (error as any).statusCode = response.status
+            ; (error as any).response = { body: errorData }
+
+          handleEmailError(error)
+        }
+      } catch (error) {
+        logError('Failed to send email via Brevo', error as Error, {
+          component: 'BrevoProvider',
+          action: 'sendEmail',
+          to: params.to
+        })
+
+        throw error
+      }
+    }, RETRY_CONFIGS.email as any, {
+      component: 'BrevoProvider',
+      action: 'sendEmail',
+      metadata: { to: params.to }
+    })
+  }
+
+  async sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEmailResult> {
+    // For Brevo, we'll send individual emails via sendEmail since their batch API 
+    // is often focused on campaign management rather than simple transactional bulk send.
+    // However, the BulkEmailService in email-retry.ts will handle this efficiently.
+    const results = await Promise.allSettled(
+      params.recipients.map(recipient =>
+        this.sendEmail({
+          to: recipient.email,
+          subject: params.subject,
+          html: params.html,
+          text: params.text,
+          from: params.from,
+          replyTo: params.replyTo,
+          tags: params.tags,
+        })
+      )
+    )
+
+    const successful = results
+      .filter((r): r is PromiseFulfilledResult<EmailResult> => r.status === 'fulfilled' && r.value.success)
+      .map(r => r.value)
+
+    const failed = results
+      .map((r, index) => ({
+        result: r,
+        recipient: params.recipients[index],
+      }))
+      .filter(({ result }) => result.status === 'rejected' || (result.status === 'fulfilled' && !result.value.success))
+      .map(({ recipient, result }) => ({
+        email: recipient.email,
+        error: result.status === 'rejected'
+          ? result.reason?.message || 'Unknown error'
+          : (result as PromiseFulfilledResult<EmailResult>).value.error || 'Failed to send',
+      }))
+
+    return {
+      success: failed.length === 0,
+      totalSent: successful.length,
+      failed,
+      messageIds: successful.map(r => r.messageId).filter(Boolean) as string[],
+    }
+  }
+}
+
 export class SESProvider implements EmailProvider {
   private region: string
   private accessKeyId: string
@@ -249,7 +364,7 @@ export class SESProvider implements EmailProvider {
 
       // In a real implementation, you would use AWS SDK here
       // const result = await sesClient.sendEmail(sesParams).promise()
-      
+
       // For now, return a simulated success response
       return {
         success: true,
@@ -279,25 +394,28 @@ export class SESProvider implements EmailProvider {
       )
     )
 
-    const successful = results.filter(r => r.status === 'fulfilled' && r.value.success)
+    const successful = results
+      .filter((r): r is PromiseFulfilledResult<EmailResult> => r.status === 'fulfilled' && r.value.success)
+      .map(r => r.value)
+
     const failed = results
       .map((r, index) => ({
         result: r,
         recipient: params.recipients[index],
       }))
-      .filter(({ result }) => result.status === 'rejected' || !result.value.success)
+      .filter(({ result }) => result.status === 'rejected' || (result.status === 'fulfilled' && !result.value.success))
       .map(({ recipient, result }) => ({
         email: recipient.email,
-        error: result.status === 'rejected' 
+        error: result.status === 'rejected'
           ? result.reason?.message || 'Unknown error'
-          : result.value.error || 'Failed to send',
+          : (result as PromiseFulfilledResult<EmailResult>).value.error || 'Failed to send',
       }))
 
     return {
       success: failed.length === 0,
       totalSent: successful.length,
       failed,
-      messageIds: successful.map(r => r.value.messageId).filter(Boolean) as string[],
+      messageIds: successful.map(r => r.messageId).filter(Boolean) as string[],
     }
   }
 }
@@ -305,31 +423,47 @@ export class SESProvider implements EmailProvider {
 // Factory function to create email provider based on environment
 export function createEmailProvider(): EmailProvider {
   const provider = process.env.EMAIL_PROVIDER?.toLowerCase() || 'sendgrid'
-  
+
+  console.log(`[EmailService] Initializing email provider: ${provider}`)
+
   switch (provider) {
     case 'sendgrid':
       const sendgridKey = process.env.SENDGRID_API_KEY
-      const fromEmail = process.env.FROM_EMAIL || 'noreply@gitmesh.dev'
-      
+      const fromEmail = process.env.FROM_EMAIL
+
       if (!sendgridKey) {
+        console.error('[EmailService] SENDGRID_API_KEY is missing')
         throw new Error('SENDGRID_API_KEY environment variable is required')
       }
-      
+
       return new SendGridProvider(sendgridKey, fromEmail)
-    
+
     case 'ses':
       const region = process.env.AWS_REGION || 'us-east-1'
       const accessKeyId = process.env.AWS_ACCESS_KEY_ID
       const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY
-      const sesFromEmail = process.env.FROM_EMAIL || 'noreply@gitmesh.dev'
-      
+      const sesFromEmail = process.env.FROM_EMAIL
+
       if (!accessKeyId || !secretAccessKey) {
+        console.error('[EmailService] AWS credentials missing for SES')
         throw new Error('AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables are required for SES')
       }
-      
+
       return new SESProvider(region, accessKeyId, secretAccessKey, sesFromEmail)
-    
+
+    case 'brevo':
+      const brevoKey = process.env.BREVO_API_KEY
+      const brevoFromEmail = process.env.FROM_EMAIL
+
+      if (!brevoKey) {
+        console.error('[EmailService] BREVO_API_KEY is missing')
+        throw new Error('BREVO_API_KEY environment variable is required for Brevo')
+      }
+
+      return new BrevoProvider(brevoKey, brevoFromEmail)
+
     default:
+      console.error(`[EmailService] Unsupported provider: ${provider}`)
       throw new Error(`Unsupported email provider: ${provider}`)
   }
 }
