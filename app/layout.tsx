@@ -1,6 +1,10 @@
 import type React from "react"
 import type { Metadata } from "next"
 import Script from "next/script"
+import { headers } from "next/headers"
+import { redirect } from "next/navigation"
+import { checkMaintenanceRedirection } from "@/lib/maintenance"
+import { validateAdminAccess } from "@/lib/auth"
 
 import "./globals.css"
 import { AuthProvider } from "@/components/providers/auth-provider"
@@ -26,11 +30,32 @@ export const metadata: Metadata = {
   description: "Community edition",
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  // Global Maintenance Check
+  const isMaintenance = await checkMaintenanceRedirection()
+  
+  if (isMaintenance) {
+    const headersList = await headers()
+    const pathname = headersList.get("x-current-path") || ""
+
+    // Allow access to maintenance page, api routes, and static assets
+    const isPublicAsset = pathname.startsWith("/_next") || pathname.includes(".")
+    const isAllowedRoute = pathname.startsWith("/maintenance") || pathname.startsWith("/api") || pathname.startsWith("/auth")
+
+    if (!isPublicAsset && !isAllowedRoute) {
+      // Check if user is admin
+      const { isValid } = await validateAdminAccess()
+      
+      if (!isValid) {
+        redirect("/maintenance")
+      }
+    }
+  }
+
   return (
     <html lang="en">
       <body className={`${onest.variable} font-sans antialiased overflow-x-hidden`}>

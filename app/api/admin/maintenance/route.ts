@@ -1,53 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { writeFileSync, readFileSync } from 'fs'
-import { join } from 'path'
+import { supabase } from '@/lib/supabase'
+import { getMaintenanceConfig, updateMaintenanceCache } from '@/lib/maintenance'
+import { validateAdminAccess } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
-    // Check if user is admin (you'll need to implement proper auth check)
-    const session = await getServerSession()
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // Check if user is admin using the project's validation utility
+    const { isValid, error: authError } = await validateAdminAccess()
+    
+    if (!isValid) {
+      return NextResponse.json({ error: 'Unauthorized', details: authError }, { status: 401 })
     }
 
-    const { enabled, message, duration } = await request.json()
+    const { enabled, message, duration, contactEmail } = await request.json()
     
-    // Read current .env file
-    const envPath = join(process.cwd(), '.env')
-    let envContent = readFileSync(envPath, 'utf8')
-    
-    // Update maintenance mode setting
-    const maintenanceModeRegex = /MAINTENANCE_MODE=.*/
-    if (maintenanceModeRegex.test(envContent)) {
-      envContent = envContent.replace(maintenanceModeRegex, `MAINTENANCE_MODE=${enabled}`)
-    } else {
-      envContent += `\nMAINTENANCE_MODE=${enabled}`
+    const updateData: any = {
+      enabled,
+      message,
+      estimated_duration: duration,
+      updated_at: new Date().toISOString()
+    }
+
+    if (contactEmail) {
+      updateData.contact_email = contactEmail
     }
     
-    // Update maintenance message if provided
-    if (message) {
-      const messageRegex = /MAINTENANCE_MESSAGE=.*/
-      if (messageRegex.test(envContent)) {
-        envContent = envContent.replace(messageRegex, `MAINTENANCE_MESSAGE=${message}`)
-      } else {
-        envContent += `\nMAINTENANCE_MESSAGE=${message}`
-      }
+    // Update Database and return the full updated row
+    const { data, error } = await supabase
+      .from('maintenance_config')
+      .upsert({
+        id: 1,
+        ...updateData
+      })
+      .select() // <--- Request the updated data
+      .single()
+
+    if (error) {
+      console.error('Error updating maintenance mode:', error)
+      return NextResponse.json({ error: 'Failed to update configuration' }, { status: 500 })
     }
     
-    // Update maintenance duration if provided
-    if (duration) {
-      const durationRegex = /MAINTENANCE_DURATION=.*/
-      if (durationRegex.test(envContent)) {
-        envContent = envContent.replace(durationRegex, `MAINTENANCE_DURATION=${duration}`)
-      } else {
-        envContent += `\nMAINTENANCE_DURATION=${duration}`
-      }
+    // Update Local Cache using the AUTHORITATIVE data from DB
+    if (data) {
+      await updateMaintenanceCache({
+        enabled: data.enabled,
+        message: data.message,
+        estimatedDuration: data.estimated_duration,
+        contactEmail: data.contact_email
+      })
     }
-    
-    // Write updated .env file
-    writeFileSync(envPath, envContent)
-    
+
     return NextResponse.json({ 
       success: true, 
       message: `Maintenance mode ${enabled ? 'enabled' : 'disabled'}` 
@@ -59,9 +61,6 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  return NextResponse.json({
-    enabled: process.env.MAINTENANCE_MODE === 'true',
-    message: process.env.MAINTENANCE_MESSAGE || 'We are currently performing scheduled maintenance.',
-    duration: process.env.MAINTENANCE_DURATION || '1-2 hours'
-  })
+  const config = await getMaintenanceConfig()
+  return NextResponse.json(config)
 }
