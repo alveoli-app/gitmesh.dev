@@ -3,13 +3,15 @@ import { NextResponse } from 'next/server'
 
 export default withAuth(
   function middleware(req) {
-    // For now, disable maintenance mode check to avoid Edge Runtime issues
-    // You can implement this via environment variables or API routes instead
-    const isMaintenancePage = req.nextUrl.pathname === '/maintenance'
-    const isApiRoute = req.nextUrl.pathname.startsWith('/api')
-    const isAdminRoute = req.nextUrl.pathname.startsWith('/admin')
-    
-    // Add any additional middleware logic here
+    // Add current path to headers for Server Components to use
+    const requestHeaders = new Headers(req.headers)
+    requestHeaders.set('x-current-path', req.nextUrl.pathname)
+
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    })
   },
   {
     callbacks: {
